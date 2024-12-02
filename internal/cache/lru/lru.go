@@ -1,6 +1,7 @@
 package lru
 
 import (
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -18,6 +19,7 @@ type Cache struct {
 	cache       map[string]*CacheItem
 	first, last *CacheItem
 	mu          sync.Mutex
+	logger      *slog.Logger
 }
 
 func NewCache(capacity int, ttl time.Duration) *Cache {
@@ -25,9 +27,12 @@ func NewCache(capacity int, ttl time.Duration) *Cache {
 		capacity: capacity,
 		ttl:      ttl,
 		cache:    make(map[string]*CacheItem, capacity),
+		logger:   slog.Default(),
 	}
 
 	go cache.startCleanUp()
+
+	cache.logger.Info("NewCache", slog.Int("capacity", capacity), slog.Duration("ttl", ttl))
 
 	return cache
 }
@@ -40,10 +45,12 @@ func (c *Cache) Add(key string, value interface{}) {
 		element.value = value
 		element.time = time.Now()
 		c.moveToFront(element)
+		c.logger.Info("Update element", slog.String("key", key), slog.Any("value", value))
 		return
 	}
 
 	if len(c.cache) >= c.capacity {
+		c.logger.Warn("Remove last element")
 		c.removeLast()
 	}
 
@@ -54,6 +61,7 @@ func (c *Cache) Add(key string, value interface{}) {
 	}
 	c.cache[key] = newItem
 	c.addToFront(newItem)
+	c.logger.Info("Add element", slog.String("key", key), slog.Any("value", value))
 }
 
 func (c *Cache) Get(key string) (interface{}, bool) {
@@ -125,6 +133,7 @@ func (c *Cache) removeElement(element *CacheItem) {
 		element.next.prev = element.prev
 	}
 
+	c.logger.Info("Remove element", slog.String("key", element.key), slog.Any("value", element.value))
 	delete(c.cache, element.key)
 }
 
