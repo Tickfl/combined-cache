@@ -17,4 +17,6 @@ func main() {
 
 	value, exists = cache.Get("key1")
 	fmt.Println(value, exists)
+
+	cache.StopCleanUp()
 }
