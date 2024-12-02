@@ -20,14 +20,16 @@ type Cache struct {
 	first, last *CacheItem
 	mu          sync.Mutex
 	logger      *slog.Logger
+	stopCleanUp chan struct{}
 }
 
 func NewCache(capacity int, ttl time.Duration) *Cache {
 	cache := &Cache{
-		capacity: capacity,
-		ttl:      ttl,
-		cache:    make(map[string]*CacheItem, capacity),
-		logger:   slog.Default(),
+		capacity:    capacity,
+		ttl:         ttl,
+		cache:       make(map[string]*CacheItem, capacity),
+		logger:      slog.Default(),
+		stopCleanUp: make(chan struct{}),
 	}
 
 	go cache.startCleanUp()
@@ -145,6 +147,8 @@ func (c *Cache) startCleanUp() {
 		select {
 		case <-ticker.C:
 			c.CleanUp()
+		case <-c.stopCleanUp:
+			return
 		}
 	}
 }
@@ -158,4 +162,8 @@ func (c *Cache) CleanUp() {
 			c.removeElement(element)
 		}
 	}
+}
+
+func (c *Cache) StopCleanUp() {
+	close(c.stopCleanUp)
 }
