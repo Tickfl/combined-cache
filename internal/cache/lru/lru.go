@@ -21,11 +21,15 @@ type Cache struct {
 }
 
 func NewCache(capacity int, ttl time.Duration) *Cache {
-	return &Cache{
+	cache := &Cache{
 		capacity: capacity,
 		ttl:      ttl,
 		cache:    make(map[string]*CacheItem, capacity),
 	}
+
+	go cache.startCleanUp()
+
+	return cache
 }
 
 func (c *Cache) Add(key string, value interface{}) {
@@ -122,4 +126,27 @@ func (c *Cache) removeElement(element *CacheItem) {
 	}
 
 	delete(c.cache, element.key)
+}
+
+func (c *Cache) startCleanUp() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			c.CleanUp()
+		}
+	}
+}
+
+func (c *Cache) CleanUp() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, element := range c.cache {
+		if time.Since(element.time) >= c.ttl {
+			c.removeElement(element)
+		}
+	}
 }
