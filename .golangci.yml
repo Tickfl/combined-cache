@@ -1,0 +1,16 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - gofmt
+    - unused
+
+issues:
+  exclude-rules:
+    - linters:
+        - errcheck
+      text: ".*should have comment.*"
